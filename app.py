@@ -78,6 +78,24 @@ st.title("Word Type & Verb Quiz")
 st.caption("Turning adjectives and nouns into verbs using -ify, -ise, -ate, -en")
 st.markdown("---")
 
+# Disable browser autocomplete on all text inputs
+st.markdown(
+    """
+    <script>
+    document.querySelectorAll('input[type="text"]').forEach(el => {
+        el.setAttribute('autocomplete', 'off');
+    });
+    const observer = new MutationObserver(() => {
+        document.querySelectorAll('input[type="text"]').forEach(el => {
+            el.setAttribute('autocomplete', 'off');
+        });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    </script>
+    """,
+    unsafe_allow_html=True,
+)
+
 # ── Finished screen ───────────────────────────────────────────────────────────
 if st.session_state.finished:
     euros = st.session_state.euros
