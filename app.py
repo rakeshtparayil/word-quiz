@@ -31,7 +31,7 @@ WORDS = [
 ]
 
 TOTAL_WORDS = len(WORDS)
-MAX_EUROS = TOTAL_WORDS * 0.10  # €0.10 per word if both answers correct
+MAX_EUROS = TOTAL_WORDS * 0.10
 
 def init_state():
     if "queue" not in st.session_state:
@@ -39,7 +39,10 @@ def init_state():
         random.shuffle(queue)
         st.session_state.queue = queue
         st.session_state.index = 0
-        st.session_state.cents = 0.0  # euros
+        st.session_state.euros = 0.0
+        st.session_state.correct_count = 0
+        st.session_state.wrong_count = 0
+        st.session_state.wrong_words = []  # list of dicts with word, your answers, correct answers
         st.session_state.submitted = False
         st.session_state.feedback = ""
         st.session_state.finished = False
@@ -63,25 +66,31 @@ st.title("Word Type & Verb Quiz")
 st.caption("Turning adjectives and nouns into verbs using -ify, -ise, -ate, -en")
 st.markdown("---")
 
-# ── Finished screen ──────────────────────────────────────────────────────────
+# ── Finished screen ───────────────────────────────────────────────────────────
 if st.session_state.finished:
-    cents = st.session_state.cents
+    euros = st.session_state.euros
+    correct = st.session_state.correct_count
+    wrong = st.session_state.wrong_count
+    wrong_words = st.session_state.wrong_words
+
     st.balloons()
     st.markdown("## Cycle Complete! 🎉")
-    st.markdown(f"You went through all **{TOTAL_WORDS} words**.")
     st.markdown("---")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Total Earned", f"€{cents:.2f}")
-    with col2:
-        st.metric("Max Possible", f"€{MAX_EUROS:.2f}")
+    # Score summary
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("✅ Correct", correct)
+    with c2:
+        st.metric("❌ Wrong", wrong)
+    with c3:
+        st.metric("💶 Earned", f"€{euros:.2f}", help=f"Max: €{MAX_EUROS:.2f}")
 
-    pct = (cents / MAX_EUROS) * 100
-    st.progress(max(0.0, min(1.0, cents / MAX_EUROS)))
+    pct = max(0.0, (euros / MAX_EUROS)) * 100
+    st.progress(max(0.0, min(1.0, euros / MAX_EUROS)))
     st.markdown(f"**Score: {pct:.1f}%**")
 
-    if cents == MAX_CENTS:
+    if correct == TOTAL_WORDS:
         st.success("Perfect score! Outstanding work!")
     elif pct >= 75:
         st.success("Great job! Keep it up!")
@@ -89,6 +98,29 @@ if st.session_state.finished:
         st.warning("Good effort! Review the missed words and try again.")
     else:
         st.error("Keep practising — you'll get there!")
+
+    # Wrong words table
+    if wrong_words:
+        st.markdown("---")
+        st.markdown("### ❌ Words You Got Wrong")
+        st.markdown("Review these before your next cycle:")
+
+        header = "| Word | Your Type | Correct Type | Your Verb | Correct Verb |"
+        divider = "|---|---|---|---|---|"
+        rows = [header, divider]
+        for w in wrong_words:
+            type_mark = "✅" if w["type_correct"] else "❌"
+            verb_mark = "✅" if w["verb_correct"] else "❌"
+            rows.append(
+                f"| **{w['word']}** "
+                f"| {type_mark} {w['your_type']} "
+                f"| {w['correct_type']} "
+                f"| {verb_mark} {w['your_verb']} "
+                f"| {w['correct_verb']} |"
+            )
+        st.markdown("\n".join(rows))
+    else:
+        st.success("You got every single word right — no mistakes!")
 
     st.write("")
     if st.button("🔄 Start New Cycle", type="primary"):
@@ -101,10 +133,8 @@ else:
     current = st.session_state.queue[idx]
     word = current["word"]
 
-    # Progress bar
-    progress = idx / TOTAL_WORDS
-    st.progress(progress)
-    st.caption(f"Word {idx + 1} of {TOTAL_WORDS}")
+    st.progress(idx / TOTAL_WORDS)
+    st.caption(f"Word {idx + 1} of {TOTAL_WORDS}   |   ✅ {st.session_state.correct_count}   ❌ {st.session_state.wrong_count}")
 
     st.markdown(f"### Word:  **{word.upper()}**")
     st.write("")
@@ -157,10 +187,21 @@ else:
 
                 if both_correct:
                     lines.append("**Both correct! +€0.10** 🎉")
+                    st.session_state.correct_count += 1
                 else:
                     lines.append("**Not fully correct. -€0.05** ❌")
+                    st.session_state.wrong_count += 1
+                    st.session_state.wrong_words.append({
+                        "word": word,
+                        "your_type": word_type,
+                        "correct_type": correct_type,
+                        "type_correct": type_correct,
+                        "your_verb": user_verb,
+                        "correct_verb": correct_verb,
+                        "verb_correct": verb_correct,
+                    })
 
-                st.session_state.cents += earned
+                st.session_state.euros += earned
                 st.session_state.feedback = "\n\n".join(lines)
                 st.session_state.submitted = True
                 st.rerun()
@@ -173,8 +214,14 @@ else:
             st.rerun()
 
     st.markdown("---")
-    st.metric("Earnings so far", f"€{st.session_state.cents:.2f}",
-              help=f"Max possible: €{MAX_EUROS:.2f}  |  Both correct: +€0.10, Any wrong: -€0.05")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("✅ Correct", st.session_state.correct_count)
+    with c2:
+        st.metric("❌ Wrong", st.session_state.wrong_count)
+    with c3:
+        st.metric("💶 Earned", f"€{st.session_state.euros:.2f}",
+                  help=f"Both correct: +€0.10 | Any wrong: -€0.05")
 
     if st.button("🔄 Restart Quiz"):
         restart()
