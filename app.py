@@ -42,19 +42,31 @@ def init_state():
         st.session_state.euros = 0.0
         st.session_state.correct_count = 0
         st.session_state.wrong_count = 0
-        st.session_state.wrong_words = []  # list of dicts with word, your answers, correct answers
+        st.session_state.wrong_words = []
         st.session_state.submitted = False
         st.session_state.feedback = ""
         st.session_state.finished = False
+    # total_euros and cycles_done persist across cycles
+    if "total_euros" not in st.session_state:
+        st.session_state.total_euros = 0.0
+    if "cycles_done" not in st.session_state:
+        st.session_state.cycles_done = 0
 
 def restart():
+    # preserve cumulative totals
+    total_euros = st.session_state.get("total_euros", 0.0)
+    cycles_done = st.session_state.get("cycles_done", 0)
     for key in list(st.session_state.keys()):
         del st.session_state[key]
+    st.session_state.total_euros = total_euros
+    st.session_state.cycles_done = cycles_done
 
 def next_word():
     next_index = st.session_state.index + 1
     if next_index >= TOTAL_WORDS:
         st.session_state.finished = True
+        st.session_state.total_euros += st.session_state.euros
+        st.session_state.cycles_done += 1
     else:
         st.session_state.index = next_index
         st.session_state.submitted = False
@@ -78,13 +90,16 @@ if st.session_state.finished:
     st.markdown("---")
 
     # Score summary
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.metric("✅ Correct", correct)
     with c2:
         st.metric("❌ Wrong", wrong)
     with c3:
-        st.metric("💶 Earned", f"€{euros:.2f}", help=f"Max: €{MAX_EUROS:.2f}")
+        st.metric("💶 This Cycle", f"€{euros:.2f}", help=f"Max per cycle: €{MAX_EUROS:.2f}")
+    with c4:
+        st.metric("🏦 All Cycles Total", f"€{st.session_state.total_euros:.2f}",
+                  help=f"Across {st.session_state.cycles_done} cycle(s)")
 
     pct = max(0.0, (euros / MAX_EUROS)) * 100
     st.progress(max(0.0, min(1.0, euros / MAX_EUROS)))
@@ -214,14 +229,17 @@ else:
             st.rerun()
 
     st.markdown("---")
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.metric("✅ Correct", st.session_state.correct_count)
     with c2:
         st.metric("❌ Wrong", st.session_state.wrong_count)
     with c3:
-        st.metric("💶 Earned", f"€{st.session_state.euros:.2f}",
-                  help=f"Both correct: +€0.10 | Any wrong: -€0.05")
+        st.metric("💶 This Cycle", f"€{st.session_state.euros:.2f}",
+                  help="Both correct: +€0.10 | Any wrong: -€0.05")
+    with c4:
+        st.metric("🏦 All Cycles Total", f"€{st.session_state.total_euros:.2f}",
+                  help=f"Across {st.session_state.cycles_done} completed cycle(s)")
 
     if st.button("🔄 Restart Quiz"):
         restart()
