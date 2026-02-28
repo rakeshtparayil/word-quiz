@@ -30,103 +30,150 @@ WORDS = [
     {"word": "unity",         "type": "noun",      "verb": "unify"},
 ]
 
+TOTAL_WORDS = len(WORDS)
+MAX_CENTS = TOTAL_WORDS * 2  # 1 cent per correct answer, 2 answers per word
+
 def init_state():
     if "queue" not in st.session_state:
         queue = WORDS.copy()
         random.shuffle(queue)
         st.session_state.queue = queue
         st.session_state.index = 0
-        st.session_state.score = 0
-        st.session_state.total = 0
+        st.session_state.cents = 0.0
         st.session_state.submitted = False
         st.session_state.feedback = ""
+        st.session_state.finished = False
+
+def restart():
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
 
 def next_word():
-    st.session_state.index += 1
-    if st.session_state.index >= len(st.session_state.queue):
-        random.shuffle(st.session_state.queue)
-        st.session_state.index = 0
-    st.session_state.submitted = False
-    st.session_state.feedback = ""
+    next_index = st.session_state.index + 1
+    if next_index >= TOTAL_WORDS:
+        st.session_state.finished = True
+    else:
+        st.session_state.index = next_index
+        st.session_state.submitted = False
+        st.session_state.feedback = ""
 
 init_state()
 
 st.title("Word Type & Verb Quiz")
 st.caption("Turning adjectives and nouns into verbs using -ify, -ise, -ate, -en")
-
 st.markdown("---")
 
-current = st.session_state.queue[st.session_state.index]
-word = current["word"]
+# ── Finished screen ──────────────────────────────────────────────────────────
+if st.session_state.finished:
+    cents = st.session_state.cents
+    st.balloons()
+    st.markdown("## Cycle Complete! 🎉")
+    st.markdown(f"You went through all **{TOTAL_WORDS} words**.")
+    st.markdown("---")
 
-st.markdown(f"### Word:  **{word.upper()}**")
-st.write("")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Total Earned", f"{cents:.1f}¢")
+    with col2:
+        st.metric("Max Possible", f"{MAX_CENTS}¢")
 
-col1, col2 = st.columns(2)
+    pct = (cents / MAX_CENTS) * 100
+    st.progress(max(0.0, min(1.0, cents / MAX_CENTS)))
+    st.markdown(f"**Score: {pct:.1f}%**")
 
-with col1:
-    word_type = st.radio(
-        "Is this word a...",
-        ["adjective", "noun"],
-        key=f"type_{st.session_state.index}",
-        disabled=st.session_state.submitted,
-    )
+    if cents == MAX_CENTS:
+        st.success("Perfect score! Outstanding work!")
+    elif pct >= 75:
+        st.success("Great job! Keep it up!")
+    elif pct >= 50:
+        st.warning("Good effort! Review the missed words and try again.")
+    else:
+        st.error("Keep practising — you'll get there!")
 
-with col2:
-    verb_input = st.text_input(
-        "Write the verb form:",
-        key=f"verb_{st.session_state.index}",
-        disabled=st.session_state.submitted,
-        placeholder="e.g. clarify",
-    )
-
-st.write("")
-
-if not st.session_state.submitted:
-    if st.button("Submit", type="primary"):
-        if not verb_input.strip():
-            st.warning("Please write the verb form before submitting.")
-        else:
-            correct_type = current["type"]
-            correct_verb = current["verb"]
-            user_verb = verb_input.strip().lower()
-
-            type_correct = word_type == correct_type
-            verb_correct = user_verb == correct_verb
-
-            st.session_state.total += 1
-            points = 0
-            lines = []
-
-            if type_correct:
-                points += 1
-                lines.append(f"✅ Word type: **{correct_type}** — correct!")
-            else:
-                lines.append(f"❌ Word type: you said **{word_type}**, correct answer is **{correct_type}**")
-
-            if verb_correct:
-                points += 1
-                lines.append(f"✅ Verb form: **{correct_verb}** — correct!")
-            else:
-                lines.append(f"❌ Verb form: you wrote **{user_verb}**, correct answer is **{correct_verb}**")
-
-            st.session_state.score += points
-            st.session_state.feedback = "\n\n".join(lines)
-            st.session_state.submitted = True
-            st.rerun()
-
-if st.session_state.submitted:
-    st.markdown(st.session_state.feedback)
     st.write("")
-    if st.button("Next Word ➡️"):
-        next_word()
+    if st.button("🔄 Start New Cycle", type="primary"):
+        restart()
         st.rerun()
 
-st.markdown("---")
-total_possible = st.session_state.total * 2 if st.session_state.total > 0 else 1
-st.metric("Score", f"{st.session_state.score} / {st.session_state.total * 2}")
+# ── Quiz screen ───────────────────────────────────────────────────────────────
+else:
+    idx = st.session_state.index
+    current = st.session_state.queue[idx]
+    word = current["word"]
 
-if st.button("🔄 Restart Quiz"):
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
-    st.rerun()
+    # Progress bar
+    progress = idx / TOTAL_WORDS
+    st.progress(progress)
+    st.caption(f"Word {idx + 1} of {TOTAL_WORDS}")
+
+    st.markdown(f"### Word:  **{word.upper()}**")
+    st.write("")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        word_type = st.radio(
+            "Is this word a...",
+            ["adjective", "noun"],
+            key=f"type_{idx}",
+            disabled=st.session_state.submitted,
+        )
+
+    with col2:
+        verb_input = st.text_input(
+            "Write the verb form:",
+            key=f"verb_{idx}",
+            disabled=st.session_state.submitted,
+            placeholder="e.g. clarify",
+        )
+
+    st.write("")
+
+    if not st.session_state.submitted:
+        if st.button("Submit", type="primary"):
+            if not verb_input.strip():
+                st.warning("Please write the verb form before submitting.")
+            else:
+                correct_type = current["type"]
+                correct_verb = current["verb"]
+                user_verb = verb_input.strip().lower()
+
+                type_correct = word_type == correct_type
+                verb_correct = user_verb == correct_verb
+
+                earned = 0.0
+                lines = []
+
+                if type_correct:
+                    earned += 1.0
+                    lines.append(f"✅ Word type: **{correct_type}** — correct! **+1¢**")
+                else:
+                    earned -= 0.5
+                    lines.append(f"❌ Word type: you said **{word_type}**, correct is **{correct_type}** — **-0.5¢**")
+
+                if verb_correct:
+                    earned += 1.0
+                    lines.append(f"✅ Verb form: **{correct_verb}** — correct! **+1¢**")
+                else:
+                    earned -= 0.5
+                    lines.append(f"❌ Verb form: you wrote **{user_verb}**, correct is **{correct_verb}** — **-0.5¢**")
+
+                st.session_state.cents += earned
+                st.session_state.feedback = "\n\n".join(lines)
+                st.session_state.submitted = True
+                st.rerun()
+
+    if st.session_state.submitted:
+        st.markdown(st.session_state.feedback)
+        st.write("")
+        if st.button("Next Word ➡️"):
+            next_word()
+            st.rerun()
+
+    st.markdown("---")
+    st.metric("Earnings so far", f"{st.session_state.cents:.1f}¢",
+              help=f"Max possible: {MAX_CENTS}¢  |  +1¢ correct, -0.5¢ wrong")
+
+    if st.button("🔄 Restart Quiz"):
+        restart()
+        st.rerun()
