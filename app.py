@@ -31,7 +31,7 @@ WORDS = [
 ]
 
 TOTAL_WORDS = len(WORDS)
-MAX_CENTS = TOTAL_WORDS * 2  # 1 cent per correct answer, 2 answers per word
+MAX_EUROS = TOTAL_WORDS * 0.10  # €0.10 per word if both answers correct
 
 def init_state():
     if "queue" not in st.session_state:
@@ -39,7 +39,7 @@ def init_state():
         random.shuffle(queue)
         st.session_state.queue = queue
         st.session_state.index = 0
-        st.session_state.cents = 0.0
+        st.session_state.cents = 0.0  # euros
         st.session_state.submitted = False
         st.session_state.feedback = ""
         st.session_state.finished = False
@@ -73,12 +73,12 @@ if st.session_state.finished:
 
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Total Earned", f"{cents:.1f}¢")
+        st.metric("Total Earned", f"€{cents:.2f}")
     with col2:
-        st.metric("Max Possible", f"{MAX_CENTS}¢")
+        st.metric("Max Possible", f"€{MAX_EUROS:.2f}")
 
-    pct = (cents / MAX_CENTS) * 100
-    st.progress(max(0.0, min(1.0, cents / MAX_CENTS)))
+    pct = (cents / MAX_EUROS) * 100
+    st.progress(max(0.0, min(1.0, cents / MAX_EUROS)))
     st.markdown(f"**Score: {pct:.1f}%**")
 
     if cents == MAX_CENTS:
@@ -140,23 +140,25 @@ else:
 
                 type_correct = word_type == correct_type
                 verb_correct = user_verb == correct_verb
+                both_correct = type_correct and verb_correct
 
-                earned = 0.0
+                earned = 0.10 if both_correct else -0.05
                 lines = []
 
                 if type_correct:
-                    earned += 1.0
-                    lines.append(f"✅ Word type: **{correct_type}** — correct! **+1¢**")
+                    lines.append(f"✅ Word type: **{correct_type}** — correct!")
                 else:
-                    earned -= 0.5
-                    lines.append(f"❌ Word type: you said **{word_type}**, correct is **{correct_type}** — **-0.5¢**")
+                    lines.append(f"❌ Word type: you said **{word_type}**, correct is **{correct_type}**")
 
                 if verb_correct:
-                    earned += 1.0
-                    lines.append(f"✅ Verb form: **{correct_verb}** — correct! **+1¢**")
+                    lines.append(f"✅ Verb form: **{correct_verb}** — correct!")
                 else:
-                    earned -= 0.5
-                    lines.append(f"❌ Verb form: you wrote **{user_verb}**, correct is **{correct_verb}** — **-0.5¢**")
+                    lines.append(f"❌ Verb form: you wrote **{user_verb}**, correct is **{correct_verb}**")
+
+                if both_correct:
+                    lines.append("**Both correct! +€0.10** 🎉")
+                else:
+                    lines.append("**Not fully correct. -€0.05** ❌")
 
                 st.session_state.cents += earned
                 st.session_state.feedback = "\n\n".join(lines)
@@ -171,8 +173,8 @@ else:
             st.rerun()
 
     st.markdown("---")
-    st.metric("Earnings so far", f"{st.session_state.cents:.1f}¢",
-              help=f"Max possible: {MAX_CENTS}¢  |  +1¢ correct, -0.5¢ wrong")
+    st.metric("Earnings so far", f"€{st.session_state.cents:.2f}",
+              help=f"Max possible: €{MAX_EUROS:.2f}  |  Both correct: +€0.10, Any wrong: -€0.05")
 
     if st.button("🔄 Restart Quiz"):
         restart()
