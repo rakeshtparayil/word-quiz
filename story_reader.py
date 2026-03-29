@@ -1,8 +1,9 @@
 import streamlit as st
-import speech_recognition as sr
 import difflib
 import re
 import io
+import os
+import tempfile
 
 # ── Story bank ────────────────────────────────────────────────────────────────
 
@@ -123,13 +124,28 @@ def compare(original_text: str, spoken_text: str):
     return results
 
 
+@st.cache_resource(show_spinner="Loading speech model (first time only)…")
+def _load_whisper():
+    """Load the Whisper tiny model – cached so it's only loaded once."""
+    import whisper
+    return whisper.load_model("tiny")
+
+
 def transcribe(audio_bytes: bytes) -> str:
-    """Send WAV bytes to Google Speech Recognition and return text."""
-    r = sr.Recognizer()
-    audio_file = io.BytesIO(audio_bytes)
-    with sr.AudioFile(audio_file) as source:
-        audio_data = r.record(source)
-    return r.recognize_google(audio_data, language="en-GB")
+    """
+    Transcribe audio using OpenAI Whisper (local, no API key, no FLAC binary).
+    Works on Apple Silicon and Intel Macs.
+    """
+    model = _load_whisper()
+    # Write bytes to a temp WAV file – Whisper reads files, not bytes
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+        tmp.write(audio_bytes)
+        tmp_path = tmp.name
+    try:
+        result = model.transcribe(tmp_path, language="en", fp16=False)
+        return result["text"].strip()
+    finally:
+        os.unlink(tmp_path)
 
 
 # ── Word badge HTML ───────────────────────────────────────────────────────────
