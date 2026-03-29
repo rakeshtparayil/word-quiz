@@ -2,8 +2,8 @@ import streamlit as st
 import difflib
 import re
 import io
-import os
-import tempfile
+import wave
+import numpy as np
 
 # ── Story bank ────────────────────────────────────────────────────────────────
 
@@ -103,21 +103,54 @@ def _load_whisper():
     return whisper.load_model("tiny")
 
 
+def _wav_to_array(audio_bytes: bytes) -> np.ndarray:
+    """
+    Convert raw WAV bytes to a float32 mono 16 kHz numpy array.
+    Uses only Python's built-in `wave` module — no ffmpeg required.
+    """
+    with wave.open(io.BytesIO(audio_bytes)) as wf:
+        sr         = wf.getframerate()
+        n_ch       = wf.getnchannels()
+        sw         = wf.getsampwidth()
+        raw        = wf.readframes(wf.getnframes())
+
+    # Convert raw bytes → float32
+    dtype_map  = {1: np.uint8, 2: np.int16, 4: np.int32}
+    dtype      = dtype_map.get(sw, np.int16)
+    audio      = np.frombuffer(raw, dtype=dtype).astype(np.float32)
+
+    # Normalise to [-1, 1]
+    if dtype == np.uint8:
+        audio = audio / 128.0 - 1.0
+    else:
+        audio = audio / float(np.iinfo(dtype).max)
+
+    # Mix down to mono
+    if n_ch > 1:
+        audio = audio.reshape(-1, n_ch).mean(axis=1)
+
+    # Resample to 16 kHz (Whisper's required sample rate)
+    if sr != 16000:
+        target = int(len(audio) * 16000 / sr)
+        audio  = np.interp(
+            np.linspace(0, len(audio), target),
+            np.arange(len(audio)),
+            audio,
+        ).astype(np.float32)
+
+    return audio
+
+
 def transcribe(audio_bytes: bytes) -> str:
     """
-    Transcribe audio using OpenAI Whisper (local, no API key, no FLAC binary).
-    Works on Apple Silicon and Intel Macs.
+    Transcribe audio using OpenAI Whisper.
+    Decodes WAV with the built-in `wave` module so ffmpeg is NOT required.
+    Works on Apple Silicon and Intel Macs out of the box.
     """
-    model = _load_whisper()
-    # Write bytes to a temp WAV file – Whisper reads files, not bytes
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        tmp.write(audio_bytes)
-        tmp_path = tmp.name
-    try:
-        result = model.transcribe(tmp_path, language="en", fp16=False)
-        return result["text"].strip()
-    finally:
-        os.unlink(tmp_path)
+    model      = _load_whisper()
+    audio_arr  = _wav_to_array(audio_bytes)
+    result     = model.transcribe(audio_arr, language="en", fp16=False)
+    return result["text"].strip()
 
 
 # ── Word badge HTML ───────────────────────────────────────────────────────────
