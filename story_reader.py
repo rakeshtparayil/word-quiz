@@ -223,152 +223,142 @@ st.markdown("---")
 
 story_text = story["text"]
 
-# ── Two-column layout ─────────────────────────────────────────────────────────
+# ── STORY CARD (always visible) ───────────────────────────────────────────────
+st.markdown(f"### {story_key}")
 
-col_story, col_record = st.columns([3, 2], gap="large")
+if not st.session_state.analysed:
+    # Plain text before recording
+    st.markdown(
+        "<div style='background:#f7f9ff;border-left:5px solid #4a6fa5;"
+        "border-radius:10px;padding:22px 26px;font-size:1.25rem;line-height:2.2'>"
+        + story_text +
+        "</div>",
+        unsafe_allow_html=True,
+    )
+else:
+    # Colour-coded words after analysis
+    results   = st.session_state.results
+    overrides = st.session_state.overrides
+    html = (
+        "<div style='background:#f7f9ff;border-left:5px solid #4a6fa5;"
+        "border-radius:10px;padding:22px 26px;line-height:2.8;font-size:1.1rem'>"
+    )
+    for i, r in enumerate(results):
+        status = r["status"]
+        if i in overrides:
+            status = "override_ok" if overrides[i] else "override_bad"
+        html += word_badge(r["original"], status)
+    html += "</div>"
+    st.markdown(html, unsafe_allow_html=True)
 
-# ── LEFT: story card ──────────────────────────────────────────────────────────
-with col_story:
-    st.markdown(f"### {story_key}")
-    sentences = re.split(r'(?<=[.!?])\s+', story_text)
+st.markdown("---")
 
-    if not st.session_state.analysed:
-        # Plain story display (before recording)
-        st.markdown(
-            "<div style='background:#f7f9ff;border-left:5px solid #4a6fa5;"
-            "border-radius:8px;padding:20px 24px;font-size:1.15rem;line-height:2'>"
-            + story_text +
-            "</div>",
-            unsafe_allow_html=True,
-        )
+# ── RECORDING (always visible) ────────────────────────────────────────────────
+st.markdown("### 🎙️ Record your reading")
+st.markdown(
+    "<div style='background:#fffbea;border:1px solid #f0c040;"
+    "border-radius:8px;padding:10px 16px;font-size:0.95rem;margin-bottom:10px'>"
+    "💡 Press the microphone, read the story above, then press stop.</div>",
+    unsafe_allow_html=True,
+)
+
+audio = st.audio_input("Tap to record", key="recorder")
+
+if audio:
+    col_btn, col_gap = st.columns([1, 2])
+    with col_btn:
+        if st.button("🔍 Analyse Reading", type="primary", use_container_width=True):
+            with st.spinner("Transcribing… (may take a few seconds)"):
+                try:
+                    transcript = transcribe(audio.read())
+                    results    = compare(story_text, transcript)
+                    st.session_state.transcript = transcript
+                    st.session_state.results    = results
+                    st.session_state.overrides  = {}
+                    st.session_state.analysed   = True
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Could not transcribe: {e}")
+
+st.markdown("---")
+
+# ── RESULTS (shown only after analysis) ───────────────────────────────────────
+if st.session_state.analysed:
+    results   = st.session_state.results
+    overrides = st.session_state.overrides
+
+    # Transcript
+    st.markdown("**What was heard:**")
+    st.info(st.session_state.transcript or "_(nothing recognised)_")
+
+    st.markdown("---")
+
+    # Score dashboard
+    n_total   = len(results)
+    n_correct = sum(
+        1 for i, r in enumerate(results)
+        if (i in overrides and overrides[i]) or
+           (i not in overrides and r["status"] in ("correct", "close"))
+    )
+    n_wrong  = n_total - n_correct
+    accuracy = int(100 * n_correct / n_total) if n_total else 0
+
+    st.markdown("### 📊 Result")
+    m1, m2, m3 = st.columns(3)
+    m1.metric("✅ Correct",  n_correct)
+    m2.metric("❌ Wrong",    n_wrong)
+    m3.metric("🎯 Accuracy", f"{accuracy}%")
+
+    bar_col = "#28a745" if accuracy >= 80 else "#ffc107" if accuracy >= 60 else "#dc3545"
+    st.markdown(
+        f"<div style='background:#eee;border-radius:8px;height:18px;margin:6px 0 12px'>"
+        f"<div style='background:{bar_col};width:{accuracy}%;height:18px;"
+        f"border-radius:8px'></div></div>",
+        unsafe_allow_html=True,
+    )
+
+    if accuracy == 100:
+        st.balloons()
+        st.success("🌟 Perfect reading! Amazing job!")
+    elif accuracy >= 80:
+        st.success("🎉 Great reading! Keep it up!")
+    elif accuracy >= 60:
+        st.warning("👍 Good effort! Practise the highlighted words.")
     else:
-        # Colour-coded word display (after analysis)
-        results   = st.session_state.results
-        overrides = st.session_state.overrides
+        st.error("💪 Keep practising – you are getting there!")
 
-        html = (
-            "<div style='background:#f7f9ff;border-left:5px solid #4a6fa5;"
-            "border-radius:8px;padding:20px 24px;line-height:2.6;font-size:1.05rem'>"
-        )
-        for i, r in enumerate(results):
-            status = r["status"]
-            if i in overrides:
-                status = "override_ok" if overrides[i] else "override_bad"
-            html += word_badge(r["original"], status)
-        html += "</div>"
-        st.markdown(html, unsafe_allow_html=True)
-
-        # ── Transcript box ────────────────────────────────────────────────────
-        st.markdown("**What was heard:**")
-        st.info(st.session_state.transcript or "_(nothing recognised)_")
-
-
-# ── RIGHT: record + score ─────────────────────────────────────────────────────
-with col_record:
-
-    if not st.session_state.analysed:
-        st.markdown("### 🎙️ Record your reading")
-        st.markdown(
-            "<div style='background:#fffbea;border:1px solid #f0c040;"
-            "border-radius:8px;padding:12px 16px;font-size:0.95rem'>"
-            "💡 <b>Tip:</b> Press the microphone, read the whole story, then press stop.</div>",
-            unsafe_allow_html=True,
-        )
-        st.markdown("")
-
-        audio = st.audio_input("Press the microphone to start recording")
-
-        if audio:
-            st.success("Recording captured! Press **Analyse** to check your reading.")
-            if st.button("🔍 Analyse Reading", type="primary", use_container_width=True):
-                with st.spinner("Transcribing your voice…"):
-                    try:
-                        transcript = transcribe(audio.read())
-                        results    = compare(story_text, transcript)
-                        st.session_state.transcript = transcript
-                        st.session_state.results    = results
-                        st.session_state.overrides  = {}
-                        st.session_state.analysed   = True
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Could not transcribe audio: {e}. Please try again in a quieter place.")
-
-    else:
-        # ── Score dashboard ───────────────────────────────────────────────────
-        results   = st.session_state.results
-        overrides = st.session_state.overrides
-
-        n_total   = len(results)
-        n_correct = sum(
-            1 for i, r in enumerate(results)
-            if (i in overrides and overrides[i]) or
-               (i not in overrides and r["status"] in ("correct", "close"))
-        )
-        n_wrong   = n_total - n_correct
-        accuracy  = int(100 * n_correct / n_total) if n_total else 0
-
-        st.markdown("### 📊 Result")
-        m1, m2, m3 = st.columns(3)
-        m1.metric("✅ Correct",  n_correct)
-        m2.metric("❌ Wrong",    n_wrong)
-        m3.metric("🎯 Accuracy", f"{accuracy}%")
-
-        # Progress bar
-        bar_col = "#28a745" if accuracy >= 80 else "#ffc107" if accuracy >= 60 else "#dc3545"
-        st.markdown(
-            f"<div style='background:#eee;border-radius:8px;height:18px;margin:8px 0'>"
-            f"<div style='background:{bar_col};width:{accuracy}%;height:18px;"
-            f"border-radius:8px;transition:width 0.5s'></div></div>",
-            unsafe_allow_html=True,
-        )
-        if accuracy == 100:
-            st.balloons()
-            st.success("🌟 Perfect reading! Amazing job!")
-        elif accuracy >= 80:
-            st.success("🎉 Great reading! Keep it up!")
-        elif accuracy >= 60:
-            st.warning("👍 Good effort! Practice the highlighted words.")
-        else:
-            st.error("💪 Keep practising – you're getting there!")
-
+    # Words to practise
+    problem_words = [
+        (i, r) for i, r in enumerate(results)
+        if r["status"] in ("wrong", "missed", "close") and i not in overrides
+    ]
+    if problem_words:
         st.markdown("---")
+        st.markdown("**Words to practise:**")
+        badges = ""
+        for i, r in problem_words:
+            icon  = "❌" if r["status"] == "wrong" else ("—" if r["status"] == "missed" else "~")
+            note  = "not said" if r["status"] == "missed" else "said differently"
+            badges += (
+                f"<span style='display:inline-block;margin:4px 4px;padding:4px 10px;"
+                f"background:#f8d7da;border-radius:6px;color:#721c24;font-weight:600'>"
+                f"{icon} {r['original']} <sup style='font-size:0.7rem;color:#999'>{note}</sup></span>"
+            )
+        st.markdown(badges, unsafe_allow_html=True)
 
-        # ── Wrong / missed word list ──────────────────────────────────────────
-        problem_words = [
-            (i, r) for i, r in enumerate(results)
-            if r["status"] in ("wrong", "missed", "close")
-            and i not in overrides
-        ]
-        if problem_words:
-            st.markdown("**Words to practise:**")
-            for i, r in problem_words:
-                icon = "❌" if r["status"] == "wrong" else ("—" if r["status"] == "missed" else "~")
-                st.markdown(
-                    f"<span style='font-size:1rem'>{icon} <b>{r['original']}</b> "
-                    f"<span style='color:gray;font-size:0.85rem'>"
-                    f"({'not said' if r['status']=='missed' else 'said differently'})"
-                    f"</span></span>",
-                    unsafe_allow_html=True,
-                )
-        else:
-            st.success("No problem words! 🌟")
+    # Parent correction panel
+    st.markdown("---")
+    st.markdown("### ✏️ Parent Corrections")
+    st.caption("Tap any word to flip it between correct ✅ and wrong ❌.")
 
-        st.markdown("---")
-
-        # ── Parent correction panel ───────────────────────────────────────────
-        st.markdown("### ✏️ Parent Corrections")
-        st.caption("Toggle any word the automatic check got wrong.")
-
-        for i, r in enumerate(results):
-            current_status = r["status"]
-            if i in overrides:
-                current_status = "override_ok" if overrides[i] else "override_bad"
-
-            is_ok = current_status in ("correct", "close", "override_ok")
-            btn_label = f"{'✅' if is_ok else '❌'}  {r['original']}"
-            btn_help  = "Click to mark as WRONG" if is_ok else "Click to mark as CORRECT"
-
-            if st.button(btn_label, key=f"tog_{i}", help=btn_help, use_container_width=True):
-                # Toggle the override
+    cols = st.columns(4)
+    for i, r in enumerate(results):
+        current_status = r["status"]
+        if i in overrides:
+            current_status = "override_ok" if overrides[i] else "override_bad"
+        is_ok     = current_status in ("correct", "close", "override_ok")
+        btn_label = f"{'✅' if is_ok else '❌'} {r['original']}"
+        with cols[i % 4]:
+            if st.button(btn_label, key=f"tog_{i}", use_container_width=True):
                 st.session_state.overrides[i] = not is_ok
                 st.rerun()
