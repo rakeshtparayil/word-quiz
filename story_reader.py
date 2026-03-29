@@ -12,59 +12,31 @@ STORIES = {
         "level": "Grade 4–5",
         "text": (
             "On a rocky cliff above the sea stood an old lighthouse. "
-            "Its white walls were worn by years of salt and wind. "
             "Every night the keeper climbed the spiral staircase and lit the great lamp. "
-            "Ships far out at sea could see the beam sweeping across the dark water. "
-            "One stormy evening the lamp flickered and nearly went out. "
-            "The keeper worked quickly, replacing the oil and trimming the wick. "
-            "By midnight the light was burning steadily once more. "
-            "The sailors on the distant ship breathed a sigh of relief. "
-            "They steered safely around the hidden rocks and reached the harbour by dawn. "
-            "The old lighthouse had saved them again."
+            "Ships far out at sea could see the beam sweeping across the dark water."
         ),
     },
     "Journey to the Stars": {
         "level": "Grade 5",
         "text": (
             "Maya had always dreamed of becoming an astronaut. "
-            "Every clear night she would lie on the grass and count the stars. "
             "She studied hard, learning about gravity, planets, and the speed of light. "
-            "One morning a letter arrived inviting her to a special science camp. "
-            "At the camp she built rockets, programmed robots, and grew vegetables in simulated soil. "
-            "Her team won the challenge by designing a satellite that could collect solar energy. "
-            "The judges were impressed by her creativity and determination. "
-            "Maya returned home with a certificate and a brand new telescope. "
-            "That night she pointed it at Jupiter and saw its four largest moons. "
-            "She smiled and wrote in her notebook: one day I will visit you."
+            "One morning a letter arrived inviting her to a special science camp."
         ),
     },
     "The Wise Old River": {
         "level": "Grade 4–5",
         "text": (
             "Deep in the forest there was a river that had flowed for thousands of years. "
-            "The animals came to drink from its cool, clear water every morning. "
             "One summer the rain stopped and the river began to shrink. "
-            "The deer, the rabbit, and the fox all became worried. "
-            "They asked the ancient tortoise what they should do. "
-            "The tortoise said that the forest needed more trees to bring back the rain. "
-            "So all the animals worked together, planting seedlings along the riverbank. "
-            "They watered the young trees carefully every day without fail. "
-            "Months passed, and slowly the clouds returned to the valley. "
-            "The river rose again, and the forest was green and alive once more."
+            "So all the animals worked together, planting seedlings along the riverbank."
         ),
     },
     "Karnika's Brilliant Idea": {
         "level": "Grade 5",
         "text": (
             "Karnika noticed that her school used enormous amounts of paper every week. "
-            "Worksheets, notices, and test papers were printed and then thrown away. "
             "She decided to present a solution to the school council. "
-            "First she collected data, counting the sheets used in each classroom. "
-            "Then she calculated how many trees were needed to produce that much paper. "
-            "The number surprised everyone, including the headteacher. "
-            "Karnika suggested switching to digital worksheets and a shared notice board. "
-            "She also proposed a recycling station near every classroom. "
-            "The council voted unanimously in favour of her plan. "
             "Within three months the school had reduced its paper use by sixty percent."
         ),
     },
