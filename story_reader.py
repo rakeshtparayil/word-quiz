@@ -290,10 +290,8 @@ with col_record:
                         st.session_state.overrides  = {}
                         st.session_state.analysed   = True
                         st.rerun()
-                    except sr.UnknownValueError:
-                        st.error("Could not understand the audio. Please try again in a quieter place.")
-                    except sr.RequestError as e:
-                        st.error(f"Speech service error: {e}. Check your internet connection.")
+                    except Exception as e:
+                        st.error(f"Could not transcribe audio: {e}. Please try again in a quieter place.")
 
     else:
         # ── Score dashboard ───────────────────────────────────────────────────
